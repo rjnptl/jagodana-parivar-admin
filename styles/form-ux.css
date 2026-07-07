@@ -1,0 +1,56 @@
+:root {
+  --form-accent: #4f46e5;
+  --form-accent-soft: rgba(79, 70, 229, 0.14);
+  --form-border: #cbd5e1;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+:where(input, select, textarea, button) { font: inherit; }
+
+:where(form input:not([type='checkbox']):not([type='radio']):not([type='file']):not(.sr-only), form select, form textarea,
+  main input:not([type='checkbox']):not([type='radio']):not([type='file']):not(.sr-only), main select, main textarea) {
+  min-height: 46px;
+  border-color: var(--form-border);
+  color: #0f172a;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease, opacity 160ms ease;
+}
+
+:where(form textarea, main textarea) { min-height: 104px; line-height: 1.55; }
+:where(input, select, textarea)::placeholder { color: #94a3b8; opacity: 1; }
+
+:where(input, select, textarea):focus-visible {
+  border-color: var(--form-accent) !important;
+  box-shadow: 0 0 0 4px var(--form-accent-soft) !important;
+  outline: 2px solid transparent !important;
+  outline-offset: 2px;
+}
+
+:where(button, a[href], [role='button'], input[type='checkbox'], input[type='radio']):focus-visible {
+  outline: 3px solid rgba(79, 70, 229, 0.45) !important;
+  outline-offset: 3px;
+}
+
+:where(form label, main label) { color: #475569; letter-spacing: 0.025em; }
+:where(input, select, textarea):disabled { cursor: not-allowed; opacity: 0.68; background-color: #f1f5f9; }
+:where(button:disabled) { cursor: not-allowed; box-shadow: none !important; }
+:where(input[type='checkbox'], input[type='radio']) { accent-color: var(--form-accent); }
+
+:where(div[class*='fixed'][class*='inset-0']) { overscroll-behavior: contain; }
+:where(div[class*='fixed'][class*='inset-0'] > div[class*='bg-white']) {
+  max-width: min(94vw, 56rem);
+  max-height: min(92dvh, 56rem);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 640px) {
+  :where(input:not([type='checkbox']):not([type='radio']):not([type='file']):not(.sr-only), select, textarea) { font-size: 16px; }
+  :where(div[class*='fixed'][class*='inset-0']) { padding: 0.75rem; }
+  :where(div[class*='fixed'][class*='inset-0'] > div[class*='bg-white']) {
+    width: 100%; max-height: 94dvh; border-radius: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(input, select, textarea, button) { transition-duration: 0.01ms !important; }
+}

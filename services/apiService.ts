@@ -1,8 +1,5 @@
 
-import { db, STORAGE_KEYS } from './databaseService';
-import { Member, Village, Business, MatrimonialProfile, SocialScheme, Sponsor, ZoneMinister, GetTogetherConfig } from '../types';
-
-const delay = (ms: number = 500) => new Promise(resolve => setTimeout(resolve, ms));
+import { BloodGroupOption, Member, Village, Business, MatrimonialProfile, SocialScheme, Sponsor, SponsorType, ZoneMinister, GetTogetherConfig } from '../types';
 
 const normalizeVillage = (village: any): Village => ({
   ...village,
@@ -13,6 +10,113 @@ const normalizeVillage = (village: any): Village => ({
   villageCode: village.villageCode ?? village.village_code ?? '',
   coordinatorContact: village.coordinatorContact ?? '',
 });
+
+const normalizeMember = (member: any): Member => {
+  const isFamilyHead = member.isFamilyHead ?? member.headOfHousehold ?? member.type === 'head';
+  const hasMobileLogin = member.hasMobileLogin ?? Boolean(member.mobileNumber ?? member.mobile ?? member.phoneNumber);
+  const mobileVerified = member.mobileVerified ?? member.isPhoneVerified ?? false;
+
+  return {
+    id: String(member.id ?? member._id ?? ''),
+    familyId: member.familyId ?? member.familyCode ?? '',
+    passcode: undefined,
+    fullName: member.fullName ?? member.name ?? [member.firstName, member.middleName, member.lastName].filter(Boolean).join(' '),
+    firstName: member.firstName ?? '',
+    middleName: member.middleName ?? member.fatherHusbandName ?? member.fatherOrHusbandName ?? '',
+    fatherHusbandName: member.middleName ?? member.fatherHusbandName ?? member.fatherOrHusbandName ?? '',
+    dob: member.dob ?? member.dateOfBirth ?? '',
+    age: member.age ?? 0,
+    gender: member.gender ?? 'Male',
+    villageId: String(member.villageId ?? member.nativeVillageId ?? ''),
+    currentCity: member.currentCity ?? member.address ?? '',
+    currentAddress: member.address ?? '',
+    bloodGroupId: member.bloodGroupId ? String(member.bloodGroupId) : null,
+    bloodGroup: member.bloodGroup ? {
+      id: String(member.bloodGroup.id),
+      name: member.bloodGroup.name,
+      isActive: member.bloodGroup.isActive ?? true,
+    } : null,
+    mobile: member.mobile ?? member.mobileNumber ?? member.phoneNumber ?? '',
+    occupation: member.occupation ?? 'Not Specified',
+    jobType: member.jobType ?? 'Unemployed',
+    maritalStatus: member.maritalStatus ?? 'Single',
+    headOfHousehold: isFamilyHead,
+    isFamilyHead,
+    hasMobileLogin,
+    mobileVerified,
+    isActiveUser: member.isActiveUser ?? (hasMobileLogin && mobileVerified),
+    addedByMemberId: member.addedByMemberId ? String(member.addedByMemberId) : undefined,
+    avatarUrl: member.profilePhoto ?? '',
+    relationToHead: isFamilyHead ? 'Self' : (member.relationToHead ?? member.relationWithHead ?? undefined),
+    relationWithHead: isFamilyHead ? 'Self' : (member.relationWithHead ?? member.relationToHead ?? undefined),
+  };
+};
+
+
+const normalizeEventConfig = (event: any): GetTogetherConfig => ({
+  id: event?.id ? String(event.id) : undefined,
+  isEnabled: Boolean(event?.isEnabled ?? event?.isVisible ?? event?.isActive ?? false),
+  isVisible: Boolean(event?.isVisible ?? event?.isEnabled ?? event?.isActive ?? false),
+  villageName: event?.villageName ?? event?.villageLocation ?? event?.location ?? '',
+  villageLocation: event?.villageLocation ?? event?.villageName ?? event?.location ?? '',
+  date: event?.date ?? event?.eventDate ?? '',
+  eventDate: event?.eventDate ?? event?.date ?? '',
+  time: event?.time ?? event?.eventTime ?? '',
+  eventTime: event?.eventTime ?? event?.time ?? '',
+  title: event?.title ?? 'Next Family Get-Together',
+  description: event?.description ?? '',
+});
+const normalizeScheme = (scheme: any): SocialScheme => ({
+  id: String(scheme?.id ?? ''),
+  title: scheme?.title ?? '',
+  description: scheme?.description ?? '',
+  eligibilityCriteria: scheme?.eligibilityCriteria ?? scheme?.eligibility ?? '',
+  contactPersonName: scheme?.contactPersonName ?? scheme?.contactPerson ?? '',
+  isActive: Boolean(scheme?.isActive),
+});
+
+const normalizeSponsor = (sponsor: any): Sponsor => ({
+  id: String(sponsor?.id ?? ''),
+  sponsorMemberId: String(sponsor?.sponsorMemberId ?? ''),
+  sponsorName: sponsor?.sponsorName ?? '',
+  familyCode: sponsor?.familyCode ?? '',
+  villageId: String(sponsor?.villageId ?? ''),
+  villageName: sponsor?.villageName ?? '',
+  schemeId: sponsor?.schemeId ? String(sponsor.schemeId) : null,
+  schemeTitle: sponsor?.schemeTitle ?? '',
+  eventName: sponsor?.eventName ?? '',
+  amount: String(sponsor?.amount ?? ''),
+  contactNumber: sponsor?.contactNumber ?? '',
+  sponsorshipDate: sponsor?.sponsorshipDate ?? '',
+  sponsorType: (sponsor?.sponsorType === 'lifetime' ? 'lifetime' : 'one-time') as SponsorType,
+  isVisibleOnMemberUI: Boolean(sponsor?.isVisibleOnMemberUI),
+});
+
+const normalizeZoneMinister = (minister: any): ZoneMinister => ({
+  id: String(minister?.id ?? ''),
+  villageId: String(minister?.villageId ?? ''),
+  villageName: minister?.villageName ?? '',
+  villageNameGujarati: minister?.villageNameGujarati ?? '',
+  villageCode: minister?.villageCode ?? '',
+  memberId: String(minister?.memberId ?? ''),
+  memberName: minister?.memberName ?? '',
+  familyCode: minister?.familyCode ?? '',
+  mobileNumber: minister?.mobileNumber ?? '',
+  currentCity: minister?.currentCity ?? '',
+  role: minister?.role ?? '',
+});
+
+const extractMemberList = (payload: any): Member[] => {
+  const members = [
+    payload,
+    payload?.data,
+    payload?.data?.data,
+    payload?.members,
+    payload?.result,
+  ].find(Array.isArray) ?? [];
+
+  return members.map(normalizeMember);
+};
 
 const extractVillageList = (payload: any): Village[] => {
   const villages = [
@@ -58,12 +162,78 @@ const getAuthHeaders = () => {
   };
 };
 
+export const ADMIN_AUTH_EXPIRED_EVENT = 'jagodana:admin-auth-expired';
+let adminRefreshPromise: Promise<string | null> | null = null;
+
+const clearAdminSession = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('adminUser');
+  window.dispatchEvent(new Event(ADMIN_AUTH_EXPIRED_EVENT));
+};
+
+const refreshAdminAccessToken = async (): Promise<string | null> => {
+  if (adminRefreshPromise) return adminRefreshPromise;
+  adminRefreshPromise = (async () => {
+    try {
+      const response = await fetch('/api/admin/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      const data = await parseJsonSafely(response);
+      const token = data?.data?.accessToken;
+      const user = data?.data?.user;
+      if (!response.ok || data?.success === false || !token || !user) {
+        clearAdminSession();
+        return null;
+      }
+      localStorage.setItem('accessToken', token);
+      localStorage.setItem('adminUser', JSON.stringify(user));
+      return token;
+    } catch {
+      clearAdminSession();
+      return null;
+    }
+  })().finally(() => {
+    adminRefreshPromise = null;
+  });
+  return adminRefreshPromise;
+};
+
+const fetchWithAdminAuth = async (url: string, options: RequestInit = {}, retryOnUnauthorized = true): Promise<Response> => {
+  const headers = new Headers(options.headers);
+  const token = localStorage.getItem('accessToken');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+
+  const response = await fetch(url, { ...options, credentials: 'include', headers });
+  if (response.status === 401 && retryOnUnauthorized && !url.endsWith('/auth/refresh')) {
+    const refreshedToken = await refreshAdminAccessToken();
+    if (refreshedToken) return fetchWithAdminAuth(url, options, false);
+  }
+  return response;
+};
+
+export interface OtpRequestRecord {
+  id: string | number;
+  firstName: string;
+  lastName: string;
+  villageName?: string;
+  mobileNumber: string;
+  familyCode: string;
+  status: 'CREATED' | 'SENT' | 'ACTIVE' | 'EXPIRED';
+  createdAt?: string;
+  sentAt?: string | null;
+  expiresAt?: string;
+}
+
 export const ApiService = {
   // Admin Authentication
   async adminLogin(email: string, password: string) {
     try {
       const response = await fetch('/api/admin/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -87,13 +257,29 @@ export const ApiService = {
 
   // Make authenticated requests
   async fetchWithAuth(url: string, options: RequestInit = {}) {
-    return fetch(url, {
-      ...options,
-      headers: {
-        ...getAuthHeaders(),
-        ...options.headers,
-      },
-    });
+    return fetchWithAdminAuth(url, options);
+  },
+
+  async refreshAdminSession() {
+    return refreshAdminAccessToken();
+  },
+
+  async getCurrentAdmin() {
+    const response = await fetchWithAdminAuth('/api/admin/auth/me', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false || !data?.user) {
+      throw new Error(data?.message || 'Administrator session is invalid');
+    }
+    return data.user;
+  },
+
+  async adminLogout() {
+    try {
+      await fetchWithAdminAuth('/api/admin/auth/logout', { method: 'POST' });
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('adminUser');
+    }
   },
 
   // Village Management
@@ -219,73 +405,372 @@ export const ApiService = {
   },
 
   async getMembers(): Promise<Member[]> {
-    await delay();
-    return db.get<Member[]>(STORAGE_KEYS.MEMBERS);
+    try {
+      const response = await this.fetchWithAuth('/api/admin/members', {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const data = await parseJsonSafely(response);
+
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.message || `Failed to fetch members (${response.status})`);
+      }
+
+      return extractMemberList(data);
+    } catch (error) {
+      console.error('Error fetching members:', error);
+      throw error;
+    }
   },
 
   async updateMember(member: Member): Promise<Member> {
-    await delay();
-    const members = db.get<Member[]>(STORAGE_KEYS.MEMBERS);
-    const index = members.findIndex(m => m.id === member.id);
-    if (index !== -1) {
-      members[index] = member;
-    } else {
-      members.push(member);
+    const response = await this.fetchWithAuth(`/api/admin/members/${encodeURIComponent(member.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        firstName: member.firstName,
+        middleName: member.middleName || member.fatherHusbandName,
+        fullName: member.fullName,
+        gender: member.gender,
+        currentCity: member.currentCity,
+        address: member.currentAddress || member.currentCity,
+        dateOfBirth: member.dob,
+        relationWithHead: member.headOfHousehold ? 'Self' : (member.relationToHead || member.relationWithHead || null),
+        profilePhoto: member.avatarUrl,
+        bloodGroupId: member.bloodGroupId || null,
+      }),
+    });
+    const data = await parseJsonSafely(response);
+
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || `Failed to update member (${response.status})`);
     }
-    db.save(STORAGE_KEYS.MEMBERS, members);
-    return member;
+
+    return normalizeMember(data?.data ?? member);
   },
 
   async deleteMember(id: string): Promise<void> {
-    await delay();
-    const members = db.get<Member[]>(STORAGE_KEYS.MEMBERS);
-    db.save(STORAGE_KEYS.MEMBERS, members.filter(m => m.id !== id));
+    console.warn('Delete member API is not available yet', id);
   },
 
   async getVillages(): Promise<Village[]> {
-    await delay();
-    return db.get<Village[]>(STORAGE_KEYS.VILLAGES);
+    return this.getAllVillages();
   },
 
-  async login(mobile: string, password?: string): Promise<Member | null> {
-    await delay(800);
-    const members = db.get<Member[]>(STORAGE_KEYS.MEMBERS);
-    return members.find(m => m.mobile === mobile && m.password === password) || null;
+  async getBloodGroups(): Promise<BloodGroupOption[]> {
+    const response = await this.fetchWithAuth('/api/blood-groups', {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    const data = await parseJsonSafely(response);
+
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || `Failed to fetch blood groups (${response.status})`);
+    }
+
+    const groups = Array.isArray(data?.data) ? data.data : [];
+    return groups.map((group: any) => ({
+      id: String(group.id),
+      name: group.name,
+      isActive: group.isActive ?? true,
+    }));
+  },
+
+  async login(mobile: string, passcode?: string): Promise<Member | null> {
+    console.warn('Admin-side member login helper is not used with API auth', mobile, passcode);
+    return null;
   },
 
   async validateFamilyId(familyId: string): Promise<boolean> {
-    await delay(300);
-    const members = db.get<Member[]>(STORAGE_KEYS.MEMBERS);
-    return members.some(m => m.familyId === familyId);
+    try {
+      const response = await this.fetchWithAuth(`/api/families/${encodeURIComponent(familyId)}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const data = await parseJsonSafely(response);
+      return response.ok && data?.success !== false && Boolean(data?.data);
+    } catch {
+      return false;
+    }
   },
 
   async getFamilyHeadVillage(familyId: string): Promise<string | null> {
-    await delay(300);
-    const members = db.get<Member[]>(STORAGE_KEYS.MEMBERS);
-    const head = members.find(m => m.familyId === familyId && m.headOfHousehold);
-    return head ? head.villageId : null;
+    try {
+      const response = await this.fetchWithAuth(`/api/families/${encodeURIComponent(familyId)}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const data = await parseJsonSafely(response);
+      return data?.data?.head?.villageId || data?.data?.members?.[0]?.villageId || null;
+    } catch {
+      return null;
+    }
   },
 
   async getBusinesses(): Promise<Business[]> {
-    await delay();
-    return db.get<Business[]>(STORAGE_KEYS.BUSINESSES);
+    const response = await this.fetchWithAuth('/api/occupations', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    return Array.isArray(data?.data) ? data.data : [];
   },
 
+  async getEvents(): Promise<GetTogetherConfig[]> {
+    const response = await this.fetchWithAuth('/api/admin/events', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to load events');
+    }
+    return Array.isArray(data?.data) ? data.data.map(normalizeEventConfig) : [];
+  },
+
+  async getActiveEvents(): Promise<GetTogetherConfig[]> {
+    const response = await fetch('/api/events/active', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to load active events');
+    }
+    return Array.isArray(data?.data) ? data.data.map(normalizeEventConfig) : [];
+  },
+
+  async saveEvent(config: GetTogetherConfig): Promise<GetTogetherConfig> {
+    const payload = {
+      villageLocation: config.villageLocation || config.villageName,
+      eventDate: config.eventDate || config.date,
+      eventTime: config.eventTime || config.time,
+      title: config.title,
+      description: config.description,
+      isVisible: config.isVisible ?? config.isEnabled,
+    };
+    const isUpdate = Boolean(config.id);
+    const response = await this.fetchWithAuth(isUpdate ? `/api/admin/events/${encodeURIComponent(String(config.id))}` : '/api/admin/events', {
+      method: isUpdate ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to save event');
+    }
+    return normalizeEventConfig(data?.data);
+  },
+
+  async toggleEvent(id: string, isVisible: boolean): Promise<GetTogetherConfig> {
+    const response = await this.fetchWithAuth(`/api/admin/events/${encodeURIComponent(id)}/toggle`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isVisible }),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to update event visibility');
+    }
+    return normalizeEventConfig(data?.data);
+  },
+
+  async deleteEvent(id: string): Promise<void> {
+    const response = await this.fetchWithAuth(`/api/admin/events/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to delete event');
+    }
+  },
   async saveConfig(config: GetTogetherConfig): Promise<void> {
-    db.save(STORAGE_KEYS.CONFIG, config);
+    await this.saveEvent(config);
+  },
+
+  async getOtpRequests(): Promise<OtpRequestRecord[]> {
+    const response = await this.fetchWithAuth('/api/admin/otp-requests', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) throw new Error(data?.message || 'Failed to load OTP requests');
+    return Array.isArray(data?.data) ? data.data.map((request: any) => ({
+      ...request,
+      id: request.id,
+      firstName: request.firstName || request.first_name || '',
+      lastName: request.lastName || request.last_name || '',
+      villageName: request.villageName || request.village_name || '',
+      mobileNumber: request.mobileNumber || request.mobile_number || '',
+      familyCode: request.familyCode || request.family_code || '',
+      status: request.status,
+      createdAt: request.createdAt || request.created_at,
+      sentAt: request.sentAt || request.sent_at,
+      expiresAt: request.expiresAt || request.expires_at,
+    })) : [];
+  },
+
+  async markOtpRequestSent(id: string | number): Promise<OtpRequestRecord> {
+    const response = await this.fetchWithAuth(`/api/admin/otp-requests/${encodeURIComponent(String(id))}/sent`, { method: 'PATCH' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) throw new Error(data?.message || 'Failed to mark OTP sent');
+    return data.data;
+  },
+
+  async resendOtpRequest(id: string | number): Promise<OtpRequestRecord> {
+    const response = await this.fetchWithAuth(`/api/admin/otp-requests/${encodeURIComponent(String(id))}/resend`, { method: 'POST' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) throw new Error(data?.message || 'Failed to resend OTP');
+    return data.data;
+  },
+
+  async expireOtpRequest(id: string | number): Promise<OtpRequestRecord> {
+    const response = await this.fetchWithAuth(`/api/admin/otp-requests/${encodeURIComponent(String(id))}/expire`, { method: 'PATCH' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) throw new Error(data?.message || 'Failed to expire OTP');
+    return data.data;
+  },
+
+  // Social Schemes (admin)
+  async getAdminSchemes(): Promise<SocialScheme[]> {
+    const response = await this.fetchWithAuth('/api/admin/schemes', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || `Failed to load schemes (${response.status})`);
+    }
+    return Array.isArray(data?.data) ? data.data.map(normalizeScheme) : [];
+  },
+
+  async createScheme(payload: Omit<SocialScheme, 'id'>): Promise<SocialScheme> {
+    const response = await this.fetchWithAuth('/api/admin/schemes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to create scheme');
+    }
+    return normalizeScheme(data?.data);
+  },
+
+  async updateScheme(id: string, payload: Omit<SocialScheme, 'id'>): Promise<SocialScheme> {
+    const response = await this.fetchWithAuth(`/api/admin/schemes/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to update scheme');
+    }
+    return normalizeScheme(data?.data);
+  },
+
+  async deleteScheme(id: string): Promise<void> {
+    const response = await this.fetchWithAuth(`/api/admin/schemes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to delete scheme');
+    }
+  },
+
+  // Sponsors (admin)
+  async getAdminSponsors(): Promise<Sponsor[]> {
+    const response = await this.fetchWithAuth('/api/admin/sponsors', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || `Failed to load sponsors (${response.status})`);
+    }
+    return Array.isArray(data?.data) ? data.data.map(normalizeSponsor) : [];
+  },
+
+  async createSponsor(payload: Record<string, unknown>): Promise<Sponsor> {
+    const response = await this.fetchWithAuth('/api/admin/sponsors', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to create sponsor');
+    }
+    return normalizeSponsor(data?.data);
+  },
+
+  async updateSponsor(id: string, payload: Record<string, unknown>): Promise<Sponsor> {
+    const response = await this.fetchWithAuth(`/api/admin/sponsors/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to update sponsor');
+    }
+    return normalizeSponsor(data?.data);
+  },
+
+  async deleteSponsor(id: string): Promise<void> {
+    const response = await this.fetchWithAuth(`/api/admin/sponsors/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to delete sponsor');
+    }
+  },
+
+  // Zone Ministers (admin)
+  async getAdminZoneMinisters(): Promise<ZoneMinister[]> {
+    const response = await this.fetchWithAuth('/api/admin/zone-ministers', { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || `Failed to load zone ministers (${response.status})`);
+    }
+    return Array.isArray(data?.data) ? data.data.map(normalizeZoneMinister) : [];
+  },
+
+  async createZoneMinister(villageId: string, payload: { memberId: string; role?: string }): Promise<ZoneMinister> {
+    const response = await this.fetchWithAuth(`/api/admin/villages/${encodeURIComponent(villageId)}/zone-minister`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to assign zone minister');
+    }
+    return normalizeZoneMinister(data?.data);
+  },
+
+  async updateZoneMinister(villageId: string, id: string, payload: { memberId: string; role?: string }): Promise<ZoneMinister> {
+    const response = await this.fetchWithAuth(`/api/admin/villages/${encodeURIComponent(villageId)}/zone-minister/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to update zone minister');
+    }
+    return normalizeZoneMinister(data?.data);
+  },
+
+  async deleteZoneMinister(villageId: string, id: string): Promise<void> {
+    const response = await this.fetchWithAuth(`/api/admin/villages/${encodeURIComponent(villageId)}/zone-minister/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || 'Failed to remove zone minister');
+    }
+  },
+
+  // Members of one village, for searchable dropdowns (admin)
+  async getVillageMembers(villageId: string): Promise<Member[]> {
+    const params = new URLSearchParams({ villageId, limit: '1000' });
+    const response = await this.fetchWithAuth(`/api/admin/members?${params.toString()}`, { method: 'GET', cache: 'no-store' });
+    const data = await parseJsonSafely(response);
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.message || `Failed to load village members (${response.status})`);
+    }
+    return extractMemberList(data);
   },
 
   async fetchAll() {
-    await delay(1000);
+    const [members, villages, schemes, sponsors, ministers, businesses, matrimonials, events] = await Promise.all([
+      this.getMembers(),
+      this.getAllVillages(),
+      this.getAdminSchemes().catch(() => []),
+      this.getAdminSponsors().catch(() => []),
+      this.getAdminZoneMinisters().catch(() => []),
+      this.fetchWithAuth('/api/occupations', { method: 'GET', cache: 'no-store' }).then(parseJsonSafely).then(data => Array.isArray(data?.data) ? data.data : []).catch(() => []),
+      this.fetchWithAuth('/api/matrimonial-profiles', { method: 'GET', cache: 'no-store' }).then(parseJsonSafely).then(data => Array.isArray(data?.data) ? data.data : []).catch(() => []),
+      this.getEvents().catch(() => []),
+    ]);
     return {
-      members: db.get<Member[]>(STORAGE_KEYS.MEMBERS),
-      villages: db.get<Village[]>(STORAGE_KEYS.VILLAGES),
-      schemes: db.get<SocialScheme[]>(STORAGE_KEYS.SCHEMES),
-      sponsors: db.get<Sponsor[]>(STORAGE_KEYS.SPONSORS),
-      ministers: db.get<ZoneMinister[]>(STORAGE_KEYS.MINISTERS),
-      businesses: db.get<Business[]>(STORAGE_KEYS.BUSINESSES),
-      matrimonials: db.get<MatrimonialProfile[]>(STORAGE_KEYS.MATRIMONIALS),
-      config: db.get<GetTogetherConfig>(STORAGE_KEYS.CONFIG),
+      members,
+      villages,
+      schemes,
+      sponsors,
+      ministers,
+      businesses,
+      matrimonials,
+      config: events.find(event => event.isEnabled) || { isEnabled: false, villageName: '', date: '', time: '' },
     };
   },
 
@@ -299,13 +784,6 @@ export const ApiService = {
     matrimonials: MatrimonialProfile[];
     config: GetTogetherConfig;
   }): void {
-    db.save(STORAGE_KEYS.MEMBERS, data.members);
-    db.save(STORAGE_KEYS.VILLAGES, data.villages);
-    db.save(STORAGE_KEYS.SCHEMES, data.schemes);
-    db.save(STORAGE_KEYS.SPONSORS, data.sponsors);
-    db.save(STORAGE_KEYS.MINISTERS, data.ministers);
-    db.save(STORAGE_KEYS.BUSINESSES, data.businesses);
-    db.save(STORAGE_KEYS.MATRIMONIALS, data.matrimonials);
-    db.save(STORAGE_KEYS.CONFIG, data.config);
+    console.warn('Bulk save API is not available yet; state changes remain in memory only.', data);
   }
 };

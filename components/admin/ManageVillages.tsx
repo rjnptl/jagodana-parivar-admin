@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Village } from '../../types';
 import { Edit2, Trash2, Plus, X, Save, MapPin, Loader2, Search } from 'lucide-react';
 import { ApiService } from '../../services/apiService';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 interface ManageVillagesProps {
   villages: Village[];
@@ -9,6 +10,9 @@ interface ManageVillagesProps {
 }
 
 const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { villageCode } = useParams<{ villageCode?: string }>();
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [newVillage, setNewVillage] = useState<Partial<Village> | null>(null);
   const [editForm, setEditForm] = useState<Partial<Village>>({});
@@ -63,6 +67,7 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
       await loadVillages();
       setNewVillage(null);
       setError(null);
+      navigate('/admin/villages', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create village';
       console.error('Error creating village:', message);
@@ -90,6 +95,7 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
       await loadVillages();
       setIsEditing(null);
       setError(null);
+      navigate('/admin/villages', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update village';
       setError(message);
@@ -120,6 +126,17 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
     setError(null);
   };
 
+  useEffect(() => {
+    if (location.pathname.endsWith('/villages/new')) {
+      setNewVillage(current => current || {});
+      return;
+    }
+    if (villageCode) {
+      const village = villages.find(item => item.villageCode === villageCode || item.id === villageCode);
+      if (village) startEdit(village);
+    }
+  }, [location.pathname, villageCode, villages]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -131,6 +148,7 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
           onClick={() => {
             setNewVillage({});
             setError(null);
+            navigate('/admin/villages/new');
           }}
           disabled={loading}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
@@ -188,7 +206,7 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
            <h3 className="font-bold text-indigo-900 mb-3">Add New Village</h3>
            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
              <input 
-               placeholder="Village Name (English)" 
+               placeholder="Enter Village Name (English)"
                className="p-2 rounded border border-indigo-200"
                value={newVillage.name || ''}
                onChange={e => setNewVillage({...newVillage, name: e.target.value})}
@@ -200,20 +218,20 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
                onChange={e => setNewVillage({...newVillage, nameGujarati: e.target.value})}
              />
              <input 
-               placeholder="Village Code" 
+               placeholder="Enter Village Code"
                className="p-2 rounded border border-indigo-200"
                value={newVillage.villageCode || ''}
                onChange={e => setNewVillage({...newVillage, villageCode: e.target.value})}
              />
              <input 
-               placeholder="District" 
+               placeholder="Enter District"
                className="p-2 rounded border border-indigo-200"
                value={newVillage.district || ''}
                onChange={e => setNewVillage({...newVillage, district: e.target.value})}
              />
            </div>
            <div className="flex justify-end gap-2">
-             <button onClick={() => setNewVillage(null)} className="px-3 py-1 text-slate-600 hover:bg-slate-200 rounded">Cancel</button>
+             <button onClick={() => { setNewVillage(null); navigate('/admin/villages'); }} className="px-3 py-1 text-slate-600 hover:bg-slate-200 rounded">Cancel</button>
              <button 
                onClick={handleAdd} 
                disabled={savingId === 'new'}
@@ -232,10 +250,10 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
           <div key={v.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
              {isEditing === v.id ? (
                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 w-full">
-                  <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="border p-2 rounded" placeholder="Village Name (English)" />
+                  <input value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="border p-2 rounded" placeholder="Enter Village Name (English)" />
                   <input value={editForm.nameGujarati || ''} onChange={e => setEditForm({...editForm, nameGujarati: e.target.value})} className="border p-2 rounded" placeholder="ગામનું નામ (ગુજરાતી)" />
-                  <input value={editForm.villageCode || ''} onChange={e => setEditForm({...editForm, villageCode: e.target.value})} className="border p-2 rounded" placeholder="Village Code" />
-                  <input value={editForm.district} onChange={e => setEditForm({...editForm, district: e.target.value})} className="border p-2 rounded" placeholder="District" />
+                  <input value={editForm.villageCode || ''} onChange={e => setEditForm({...editForm, villageCode: e.target.value})} className="border p-2 rounded" placeholder="Enter Village Code" />
+                  <input value={editForm.district} onChange={e => setEditForm({...editForm, district: e.target.value})} className="border p-2 rounded" placeholder="Enter District" />
                </div>
              ) : (
                <div className="flex-1">
@@ -254,11 +272,11 @@ const ManageVillages: React.FC<ManageVillagesProps> = ({ villages, setVillages }
                    >
                      {savingId === v.id ? <Loader2 size={18} className="animate-spin" /> : <Save size={18}/>}
                    </button>
-                   <button onClick={() => setIsEditing(null)} className="p-2 text-slate-400 hover:bg-slate-50 rounded"><X size={18}/></button>
+                   <button onClick={() => { setIsEditing(null); navigate('/admin/villages'); }} className="p-2 text-slate-400 hover:bg-slate-50 rounded"><X size={18}/></button>
                  </>
                ) : (
                  <>
-                   <button onClick={() => startEdit(v)} disabled={savingId !== null} className="p-2 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"><Edit2 size={18}/></button>
+                   <button onClick={() => { startEdit(v); navigate('/admin/villages/' + encodeURIComponent(v.villageCode || v.id) + '/edit'); }} disabled={savingId !== null} className="p-2 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"><Edit2 size={18}/></button>
                    <button 
                      onClick={() => handleDelete(v.id)} 
                      disabled={savingId === v.id}
