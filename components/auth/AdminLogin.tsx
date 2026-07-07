@@ -1,9 +1,10 @@
 
 
 import React, { useState } from 'react';
-import { ArrowRight, ShieldAlert, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import logo from '../../assets/jagodanaparivar.png';
 
 const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -14,7 +15,7 @@ const AdminLogin: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { login } = useAuth();
-  const from = location.state?.from?.pathname || '/admin/dashboard';
+  const from = location.state?.from?.pathname || '/admin/overview';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,13 +36,12 @@ const AdminLogin: React.FC = () => {
 
   return (
     <div className="w-full flex items-center justify-center py-12 px-4 animate-fade-in">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fade-in">
-        <div className="bg-slate-800 p-8 text-white text-center border-b border-slate-700">
-          <div className="w-16 h-16 bg-red-500/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-500/30">
-            <ShieldAlert size={40} className="text-red-500" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-wider uppercase">Admin Portal</h2>
-          <p className="text-slate-400 text-sm mt-2">Restricted Access Only</p>
+      <div className="brand-card bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-fade-in border border-slate-100">
+        <div className="brand-gradient p-8 text-white text-center">
+          <img src={logo} alt="Jagodana Parivar" className="brand-logo h-24 w-24 mx-auto mb-4 rounded-full bg-white p-1 shadow-xl" />
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/75 mb-2">Jagodana Parivar</p>
+          <h2 className="text-2xl font-bold tracking-wide">Admin Portal</h2>
+          <p className="text-white/70 text-sm mt-2">Secure administration access</p>
         </div>
 
         <div className="p-8">
@@ -52,10 +52,11 @@ const AdminLogin: React.FC = () => {
                 type="email"
                 required
                 disabled={isLoading}
-                className="block w-full p-3 border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="block w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
+                autoComplete="username"
+                placeholder="Enter Email Address"
               />
             </div>
 
@@ -65,10 +66,11 @@ const AdminLogin: React.FC = () => {
                 type="password"
                 required
                 disabled={isLoading}
-                className="block w-full p-3 border border-slate-200 rounded bg-slate-50 focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="block w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                autoComplete="current-password"
+                placeholder="Enter Password"
               />
             </div>
 
@@ -77,7 +79,7 @@ const AdminLogin: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center py-3 px-4 rounded-lg shadow-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>

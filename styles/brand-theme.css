@@ -1,0 +1,26 @@
+:root {
+  --brand-primary: #28166f;
+  --brand-primary-hover: #1f1159;
+  --brand-secondary: #d4146f;
+  --brand-accent: #ef7d00;
+  --brand-green: #049447;
+  --brand-ring: rgba(40, 22, 111, 0.2);
+  --form-accent: var(--brand-primary);
+  --form-accent-soft: var(--brand-ring);
+}
+body { background: linear-gradient(180deg, #fff 0%, #fffaf6 42%, #f8fafc 100%); }
+.brand-gradient { background: linear-gradient(135deg, var(--brand-primary) 0%, #4b237f 48%, var(--brand-secondary) 100%); }
+.brand-sidebar { background: linear-gradient(180deg, #fff 0%, #fcfaff 100%); }
+.brand-logo { display: block; flex: 0 0 auto; object-fit: contain; }
+.brand-card { border-color: rgba(40, 22, 111, 0.1); box-shadow: 0 22px 55px -34px rgba(40, 22, 111, 0.55); }
+.bg-indigo-600 { background-color: var(--brand-primary) !important; }
+.bg-indigo-700 { background-color: var(--brand-primary-hover) !important; }
+.bg-indigo-50 { background-color: #f3f0ff !important; }
+.bg-indigo-100 { background-color: #e7e1ff !important; }
+.text-indigo-600 { color: var(--brand-primary) !important; }
+.text-indigo-700 { color: #21125f !important; }
+.border-indigo-100 { border-color: #ddd5ff !important; }
+.ring-indigo-100 { --tw-ring-color: #e7e1ff !important; }
+.hover\:bg-indigo-700:hover { background-color: var(--brand-primary-hover) !important; }
+.hover\:text-indigo-600:hover { color: var(--brand-secondary) !important; }
+::selection { background: rgba(212, 20, 111, 0.2); color: var(--brand-primary); }

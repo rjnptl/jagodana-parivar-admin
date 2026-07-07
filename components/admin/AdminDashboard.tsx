@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Member, Village, Sponsor } from '../../types';
 import { Users, Building2, BarChart2, IndianRupee, HeartHandshake } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import logo from '../../assets/jagodanaparivar.png';
 
 interface AdminDashboardProps {
   members: Member[];
@@ -20,6 +21,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ members, villages, spon
   }, [members]);
 
   const totalMembers = members.length;
+  const maleCount = useMemo(() => members.filter(member => member.gender === 'Male').length, [members]);
+  const femaleCount = useMemo(() => members.filter(member => member.gender === 'Female').length, [members]);
 
   // Logic for Visual Report Data (Villages)
   const chartData = useMemo(() => {
@@ -55,16 +58,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ members, villages, spon
 
   // Logic for Sponsor Analytics
   const sponsorStats = useMemo(() => {
-    const cleanAmount = (str: string): number => parseInt(str.replace(/[^0-9]/g, '') || '0', 10);
-    
+    const cleanAmount = (value: string): number => {
+      const amount = Number(value);
+      return Number.isFinite(amount) ? amount : 0;
+    };
+
     const totalAmount = sponsors.reduce((acc, curr) => acc + cleanAmount(curr.amount), 0);
-    const uniqueSponsors = new Set(sponsors.map(s => s.name)).size;
+    const uniqueSponsors = new Set(sponsors.map(s => s.sponsorMemberId || s.sponsorName)).size;
 
     // Group amounts by sponsor name
     const groupedData = sponsors.reduce((acc, curr) => {
       const amt: number = cleanAmount(curr.amount);
-      const current: number = acc[curr.name] || 0;
-      acc[curr.name] = current + amt;
+      const sponsorKey = curr.sponsorName || 'Unknown';
+      const current: number = acc[sponsorKey] || 0;
+      acc[sponsorKey] = current + amt;
       return acc;
     }, {} as Record<string, number>);
 
@@ -87,14 +94,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ members, villages, spon
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Admin Dashboard</h2>
-          <p className="text-slate-500">Overview of community demographics and family statistics.</p>
+        <div className="flex items-center gap-4">
+          <img src={logo} alt="" className="brand-logo h-14 w-14" />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">Jagodana Parivar</p>
+            <h2 className="text-2xl font-bold text-slate-800">Admin Dashboard</h2>
+            <p className="text-slate-500">Overview of community demographics and family statistics.</p>
+          </div>
         </div>
       </div>
 
       {/* KPI Cards - Global Totals */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center space-x-4">
            <div className="p-3 rounded-full bg-indigo-100 text-indigo-600"><Building2 size={24} /></div>
            <div>
@@ -107,6 +118,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ members, villages, spon
            <div>
              <p className="text-slate-500 text-sm font-medium">Total Members (All Villages)</p>
              <h3 className="text-2xl font-bold text-slate-800">{totalMembers}</h3>
+           </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center space-x-4">
+           <div className="p-3 rounded-full bg-sky-100 text-sky-600"><Users size={24} /></div>
+           <div>
+             <p className="text-slate-500 text-sm font-medium">Male Members</p>
+             <h3 className="text-2xl font-bold text-slate-800">{maleCount}</h3>
+           </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center space-x-4">
+           <div className="p-3 rounded-full bg-pink-100 text-pink-600"><Users size={24} /></div>
+           <div>
+             <p className="text-slate-500 text-sm font-medium">Female Members</p>
+             <h3 className="text-2xl font-bold text-slate-800">{femaleCount}</h3>
            </div>
         </div>
       </div>
@@ -191,7 +216,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ members, villages, spon
                 />
                 <Bar 
                   dataKey="count" 
-                  fill={reportType === 'families' ? '#4f46e5' : '#3b82f6'} 
+                  fill={reportType === 'families' ? '#28166f' : '#d4146f'}
                   radius={[4, 4, 0, 0]} 
                   barSize={selectedVillageId === 'All' ? undefined : 80}
                   name={reportType === 'families' ? 'Families' : 'Members'}

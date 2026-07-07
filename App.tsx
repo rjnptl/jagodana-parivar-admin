@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import logo from './assets/jagodanaparivar.png';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './components/admin/AdminDashboard';
 import ManageBloodGroups from './components/admin/ManageBloodGroups';
 import ManageEvents from './components/admin/ManageEvents';
 import ManageFamilies from './components/admin/ManageFamilies';
 import ManageMinisters from './components/admin/ManageMinisters';
+import ManageOtpRequests from './components/admin/ManageOtpRequests';
 import ManageSchemes from './components/admin/ManageSchemes';
 import ManageSponsors from './components/admin/ManageSponsors';
 import ManageVillages from './components/admin/ManageVillages';
@@ -89,21 +91,6 @@ const App: React.FC = () => {
     }
   }, [isLoggedIn, isAuthLoading]);
 
-  useEffect(() => {
-    if (!isLoading && isLoggedIn) {
-      ApiService.saveAll({
-        members,
-        villages,
-        schemes,
-        sponsors,
-        ministers,
-        businesses,
-        matrimonials,
-        config: getTogetherConfig,
-      });
-    }
-  }, [businesses, getTogetherConfig, isLoading, isLoggedIn, matrimonials, members, ministers, schemes, sponsors, villages]);
-
   const handleLogout = () => {
     logout();
   };
@@ -111,15 +98,16 @@ const App: React.FC = () => {
   if (isAuthLoading || (isLoggedIn && isLoading)) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-[9999]">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium animate-pulse">Loading Jagodana Admin...</p>
+        <img src={logo} alt="Jagodana Parivar Admin" className="brand-logo h-24 w-24 mb-5 drop-shadow-lg" />
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
+        <p className="text-slate-600 font-semibold animate-pulse">Loading Jagodana Parivar Admin...</p>
       </div>
     );
   }
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={isLoggedIn ? '/admin/dashboard' : '/admin/login'} replace />} />
+      <Route path="/" element={<Navigate to="/admin/overview" replace />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route
         path="/admin"
@@ -143,17 +131,34 @@ const App: React.FC = () => {
           </ProtectedAdminRoute>
         }
       >
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<AdminDashboard members={members} villages={villages} sponsors={sponsors} />} />
+        <Route index element={<Navigate to="/admin/overview" replace />} />
+        <Route path="overview" element={<AdminDashboard members={members} villages={villages} sponsors={sponsors} />} />
+        <Route path="dashboard" element={<Navigate to="/admin/overview" replace />} />
         <Route path="families" element={<ManageFamilies members={members} villages={villages} />} />
+        <Route path="families/:familyCode" element={<ManageFamilies members={members} villages={villages} />} />
+        <Route path="members" element={<ManageFamilies members={members} villages={villages} />} />
+        <Route path="members/:memberId" element={<ManageFamilies members={members} villages={villages} />} />
+        <Route path="otp-requests" element={<ManageOtpRequests />} />
         <Route path="events" element={<ManageEvents config={getTogetherConfig} setConfig={setGetTogetherConfig} />} />
+        <Route path="events/new" element={<ManageEvents config={getTogetherConfig} setConfig={setGetTogetherConfig} />} />
+        <Route path="events/:eventId/edit" element={<ManageEvents config={getTogetherConfig} setConfig={setGetTogetherConfig} />} />
         <Route path="villages" element={<ManageVillages villages={villages} setVillages={setVillages} />} />
+        <Route path="villages/new" element={<ManageVillages villages={villages} setVillages={setVillages} />} />
+        <Route path="villages/:villageCode/edit" element={<ManageVillages villages={villages} setVillages={setVillages} />} />
         <Route path="schemes" element={<ManageSchemes schemes={schemes} setSchemes={setSchemes} />} />
-        <Route path="sponsors" element={<ManageSponsors sponsors={sponsors} setSponsors={setSponsors} schemes={schemes} />} />
-        <Route path="ministers" element={<ManageMinisters ministers={ministers} setMinisters={setMinisters} members={members} villages={villages} />} />
+        <Route path="schemes/new" element={<ManageSchemes schemes={schemes} setSchemes={setSchemes} />} />
+        <Route path="schemes/:schemeId/edit" element={<ManageSchemes schemes={schemes} setSchemes={setSchemes} />} />
+        <Route path="sponsors" element={<ManageSponsors sponsors={sponsors} setSponsors={setSponsors} schemes={schemes} villages={villages} />} />
+        <Route path="sponsors/new" element={<ManageSponsors sponsors={sponsors} setSponsors={setSponsors} schemes={schemes} villages={villages} />} />
+        <Route path="sponsors/:sponsorId/edit" element={<ManageSponsors sponsors={sponsors} setSponsors={setSponsors} schemes={schemes} villages={villages} />} />
+        <Route path="zone-ministers" element={<ManageMinisters ministers={ministers} setMinisters={setMinisters} villages={villages} />} />
+        <Route path="zone-ministers/new" element={<ManageMinisters ministers={ministers} setMinisters={setMinisters} villages={villages} />} />
+        <Route path="zone-ministers/:id/edit" element={<ManageMinisters ministers={ministers} setMinisters={setMinisters} villages={villages} />} />
+        <Route path="ministers" element={<Navigate to="/admin/zone-ministers" replace />} />
         <Route path="blood-groups" element={<ManageBloodGroups members={members} setMembers={setMembers} />} />
+        <Route path="settings" element={<div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm"><h2 className="text-2xl font-bold text-slate-800">Admin Settings</h2><p className="mt-2 text-slate-500">Application settings will appear here when configuration options are available.</p></div>} />
       </Route>
-      <Route path="*" element={<Navigate to={isLoggedIn ? '/admin/dashboard' : '/admin/login'} replace />} />
+      <Route path="*" element={<Navigate to="/admin/overview" replace />} />
     </Routes>
   );
 };

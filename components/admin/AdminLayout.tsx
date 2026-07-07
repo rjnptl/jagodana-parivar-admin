@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
-  LayoutDashboard, Menu, X, Map, ShieldCheck, HandHeart, Briefcase, Droplet, LogOut, Calendar, Users
+  LayoutDashboard, Menu, X, Map, ShieldCheck, HandHeart, Briefcase, Droplet, LogOut, Calendar, Users, MessageCircle
 } from 'lucide-react';
 import { Member, Village, SocialScheme, Sponsor, ZoneMinister, GetTogetherConfig } from '../../types';
+import logo from '../../assets/jagodanaparivar.png';
 
 interface AdminLayoutProps {
   members: Member[];
@@ -23,7 +24,7 @@ interface AdminLayoutProps {
 }
 
 const NavItem = ({ path, label, icon: Icon, currentPath, navigate, setIsMobileMenuOpen }: any) => {
-  const isActive = (path === '/admin' && currentPath === '/admin') || (path !== '/admin' && currentPath === path);
+  const isActive = currentPath === path || currentPath.startsWith(`${path}/`);
   
   return (
     <button
@@ -62,29 +63,28 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
 
       {/* Sidebar Navigation */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out flex flex-col
+        brand-sidebar fixed lg:static inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out flex flex-col
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">A</div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-              Admin<span className="text-indigo-600">Portal</span>
-            </h1>
-          </div>
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <button type="button" onClick={() => { navigate('/admin/overview'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" aria-label="Jagodana Parivar Admin overview">
+            <img src={logo} alt="" className="brand-logo h-12 w-12" />
+            <div><h1 className="text-base font-extrabold text-slate-800 tracking-tight">Jagodana <span className="text-indigo-600">Parivar</span></h1><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">Admin Portal</p></div>
+          </button>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-slate-500">
             <X size={24} />
           </button>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          <NavItem path="/admin" label="Overview" icon={LayoutDashboard} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
+          <NavItem path="/admin/overview" label="Overview" icon={LayoutDashboard} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
           <NavItem path="/admin/families" label="Families" icon={Users} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
+          <NavItem path="/admin/otp-requests" label="OTP Requests" icon={MessageCircle} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
           <NavItem path="/admin/events" label="Get-Together" icon={Calendar} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
           <NavItem path="/admin/villages" label="Villages" icon={Map} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
           <NavItem path="/admin/schemes" label="Schemes" icon={ShieldCheck} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
           <NavItem path="/admin/sponsors" label="Sponsors" icon={HandHeart} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
-          <NavItem path="/admin/ministers" label="Zone Ministers" icon={Briefcase} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
+          <NavItem path="/admin/zone-ministers" label="Zone Ministers" icon={Briefcase} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
           <NavItem path="/admin/blood-groups" label="Blood Groups" icon={Droplet} currentPath={location.pathname} navigate={navigate} setIsMobileMenuOpen={setIsMobileMenuOpen} />
         </nav>
 
@@ -102,10 +102,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
       {/* Main Content Area */}
       <main className="flex-1 h-screen overflow-y-auto bg-slate-50">
         <header className="lg:hidden bg-white border-b border-slate-200 p-4 sticky top-0 z-30 flex items-center justify-between">
-           <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">A</div>
-              <h1 className="text-lg font-bold text-slate-800">Admin<span className="text-indigo-600">Portal</span></h1>
-            </div>
+           <button type="button" onClick={() => navigate('/admin/overview')} className="flex items-center gap-2.5 min-w-0 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" aria-label="Jagodana Parivar Admin overview">
+              <img src={logo} alt="" className="brand-logo h-10 w-10" />
+              <div className="min-w-0"><h1 className="truncate text-sm font-extrabold text-slate-800">Jagodana Parivar</h1><p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Admin Portal</p></div>
+            </button>
           <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600">
             <Menu size={24} />
           </button>

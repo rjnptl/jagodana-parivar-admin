@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { ApiService } from '../services/apiService';
+import { ADMIN_AUTH_EXPIRED_EVENT, ApiService } from '../services/apiService';
 
 export interface AdminUser {
   id: number;
@@ -15,8 +15,8 @@ export interface AuthContextType {
   isLoggedIn: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  checkAuth: () => void;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,22 +29,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Check if token exists in localStorage on mount
   useEffect(() => {
     checkAuth();
+    const handleExpiredSession = () => clearLocalSession();
+    window.addEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleExpiredSession);
+    return () => window.removeEventListener(ADMIN_AUTH_EXPIRED_EVENT, handleExpiredSession);
   }, []);
 
-  const checkAuth = () => {
-    const storedToken = localStorage.getItem('accessToken');
-    const storedUser = localStorage.getItem('adminUser');
-    
-    if (storedToken && storedUser) {
-      try {
-        setAccessToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Failed to restore auth:', error);
-        logout();
+  const clearLocalSession = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('adminUser');
+    setAccessToken(null);
+    setUser(null);
+  };
+
+  const checkAuth = async () => {
+    try {
+      if (!localStorage.getItem('accessToken')) {
+        const refreshed = await ApiService.refreshAdminSession();
+        if (!refreshed) return;
       }
+      const currentUser = await ApiService.getCurrentAdmin();
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+      localStorage.setItem('adminUser', JSON.stringify(currentUser));
+      setAccessToken(token);
+      setUser(currentUser);
+    } catch (error) {
+      console.error('Failed to restore auth:', error);
+      clearLocalSession();
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const login = async (email: string, password: string) => {
@@ -71,11 +85,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('adminUser');
-    setAccessToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await ApiService.adminLogout();
+    } finally {
+      clearLocalSession();
+    }
   };
 
   const value: AuthContextType = {
